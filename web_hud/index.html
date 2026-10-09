@@ -86,10 +86,10 @@
       </div>
 
       <div class="command-input-container">
-        <button class="mic-btn" id="micBtn" onclick="setStatus('LISTENING', 'LISTENING FOR VOICE COMMAND...')">
+        <button class="mic-btn" id="micBtn" onclick="toggleBrowserSpeech()">
           🎙️ Speak
         </button>
-        <input type="text" id="cmdInput" class="cmd-input" placeholder="Say a voice command or type here (e.g. 'Open VS Code', 'Volume Up')...">
+        <input type="text" id="cmdInput" class="cmd-input" placeholder="Say a voice command or type here (e.g. 'Open VS Code', 'Volume Up', 'Lock Screen')...">
         <button class="send-btn" onclick="submitCommand()">Send</button>
       </div>
     </section>
@@ -97,7 +97,7 @@
     <!-- Right Drawer: Quick Actions & Personas -->
     <aside class="right-drawer">
       <div class="section-title">Persona Studio</div>
-      <select class="persona-select" id="personaSelect" onchange="appendMessage('Maya', 'Persona switched to: ' + this.options[this.selectedIndex].text)">
+      <select class="persona-select" id="personaSelect" onchange="switchPersona(this)">
         <option value="maya_default">Maya (Balanced Executive)</option>
         <option value="jarvis">Jarvis (British Butler)</option>
         <option value="cyberpunk">Cyberpunk Terminal</option>
@@ -106,19 +106,27 @@
 
       <div class="section-title">Quick Automation</div>
       <div class="action-list">
-        <div class="action-card" onclick="document.getElementById('cmdInput').value='Open VS Code'; submitCommand();">
+        <div class="action-card" onclick="triggerQuickAction('Open VS Code')">
           <div class="action-name">Launch VS Code</div>
           <div class="action-key">Dev App</div>
         </div>
-        <div class="action-card" onclick="document.getElementById('cmdInput').value='Take Screenshot'; submitCommand();">
+        <div class="action-card" onclick="triggerQuickAction('Open Chrome')">
+          <div class="action-name">Launch Chrome</div>
+          <div class="action-key">Browser</div>
+        </div>
+        <div class="action-card" onclick="triggerQuickAction('Take Screenshot')">
           <div class="action-name">Capture Screenshot</div>
           <div class="action-key">System</div>
         </div>
-        <div class="action-card" onclick="document.getElementById('cmdInput').value='Volume Up'; submitCommand();">
+        <div class="action-card" onclick="triggerQuickAction('Volume Up')">
           <div class="action-name">Increase Volume</div>
           <div class="action-key">Audio</div>
         </div>
-        <div class="action-card" onclick="document.getElementById('cmdInput').value='Focus Mode'; submitCommand();">
+        <div class="action-card" onclick="triggerQuickAction('Minimize All')">
+          <div class="action-name">Boss Key (Hide Windows)</div>
+          <div class="action-key">Privacy</div>
+        </div>
+        <div class="action-card" onclick="triggerQuickAction('Focus Mode')">
           <div class="action-name">⚡ Focus Mode Macro</div>
           <div class="action-key">Workflow</div>
         </div>

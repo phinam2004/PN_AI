@@ -1,6 +1,6 @@
 // ==========================================================================
-// MAYA AI COCKPIT HUD CONTROLLER
-// Handles real-time audio visualization, mock/live telemetry, and commands
+// MAYA AI COCKPIT HUD CONTROLLER - FULL WEBSOCKET & VOICE INTEGRATION
+// Connects to local Python server for real-time Windows control & mic
 // ==========================================================================
 
 const canvas = document.getElementById('audioCanvas');
@@ -23,22 +23,22 @@ function drawWave() {
   const cy = canvas.height / 2;
 
   let baseColor = '#00E5FF';
-  let amplitude = 12;
+  let amplitude = 14;
   let frequency = 0.02;
   let speed = 0.04;
 
   if (currentStatus === 'LISTENING') {
     baseColor = '#00E5FF';
-    amplitude = 32;
-    speed = 0.08;
+    amplitude = 36;
+    speed = 0.09;
   } else if (currentStatus === 'THINKING') {
     baseColor = '#F59E0B';
-    amplitude = 18;
+    amplitude = 20;
     speed = 0.12;
   } else if (currentStatus === 'SPEAKING') {
     baseColor = '#10B981';
-    amplitude = 40;
-    speed = 0.07;
+    amplitude = 42;
+    speed = 0.08;
   }
 
   // Draw Glow Circle Core
@@ -93,17 +93,21 @@ function setStatus(status, text) {
   const dot = document.getElementById('statusDot');
   const label = document.getElementById('statusLabel');
 
-  caption.innerText = text || `STATUS // ${status}`;
-  label.innerText = status;
+  if (caption) caption.innerText = text || `STATUS // ${status}`;
+  if (label) label.innerText = status;
 
-  if (status === 'IDLE') dot.style.background = '#00E5FF';
-  else if (status === 'LISTENING') dot.style.background = '#00E5FF';
-  else if (status === 'THINKING') dot.style.background = '#F59E0B';
-  else if (status === 'SPEAKING') dot.style.background = '#10B981';
+  if (dot) {
+    if (status === 'IDLE') dot.style.background = '#00E5FF';
+    else if (status === 'LISTENING') dot.style.background = '#00E5FF';
+    else if (status === 'THINKING') dot.style.background = '#F59E0B';
+    else if (status === 'SPEAKING') dot.style.background = '#10B981';
+  }
 }
 
 function appendMessage(sender, text) {
   const feed = document.getElementById('transcriptFeed');
+  if (!feed) return;
+
   const bubble = document.createElement('div');
   bubble.className = `message-bubble message-${sender.toLowerCase()}`;
   
@@ -120,44 +124,186 @@ function appendMessage(sender, text) {
   feed.scrollTop = feed.scrollHeight;
 }
 
+// ==========================================================================
+// REAL-TIME WEBSOCKET BRIDGE TO PYTHON BACKEND
+// ==========================================================================
+let ws = null;
+let reconnectTimer = null;
+
+function connectWebSocket() {
+  const host = window.location.host || '127.0.0.1:8000';
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${host}/ws`;
+
+  console.log(`Connecting to WebSocket: ${wsUrl}`);
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    console.log('✅ WebSocket Connected to Maya AI Backend');
+    setStatus('IDLE', 'CONNECTED // STANDBY FOR COMMANDS');
+    const label = document.getElementById('statusLabel');
+    if (label) label.innerText = 'SYSTEM ONLINE (WS CONNECTED)';
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === 'telemetry') {
+        updateTelemetry(msg.data);
+      } else if (msg.type === 'status') {
+        setStatus(msg.status, msg.caption);
+      } else if (msg.type === 'transcript') {
+        appendMessage(msg.sender, msg.text);
+      }
+    } catch (e) {
+      console.error('Error parsing WS message:', e);
+    }
+  };
+
+  ws.onclose = () => {
+    console.warn('WebSocket Disconnected. Retrying in 2 seconds...');
+    setStatus('IDLE', 'OFFLINE // RECONNECTING BACKEND...');
+    const label = document.getElementById('statusLabel');
+    if (label) label.innerText = 'DISCONNECTED (RETRYING)';
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connectWebSocket, 2000);
+  };
+
+  ws.onerror = (err) => {
+    console.error('WebSocket Error:', err);
+  };
+}
+
+connectWebSocket();
+
+function sendWS(payload) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(payload));
+  } else {
+    console.warn('WebSocket is not open, falling back to REST API');
+    if (payload.type === 'command') {
+      fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: payload.text })
+      }).then(r => r.json()).then(res => {
+        appendMessage('User', payload.text);
+        appendMessage('Maya', res.response);
+      }).catch(err => {
+        appendMessage('System', 'Cannot connect to Maya backend. Please ensure server.py is running.');
+      });
+    }
+  }
+}
+
+function updateTelemetry(data) {
+  if (!data) return;
+  if (data.cpu_percent !== undefined) {
+    const cpuEl = document.getElementById('cpuValue');
+    const cpuProg = document.getElementById('cpuProgress');
+    if (cpuEl) cpuEl.innerText = `${data.cpu_percent}%`;
+    if (cpuProg) cpuProg.style.width = `${Math.min(100, data.cpu_percent)}%`;
+  }
+  if (data.ram_percent !== undefined) {
+    const ramEl = document.getElementById('ramValue');
+    const ramProg = document.getElementById('ramProgress');
+    if (ramEl) ramEl.innerText = `${data.ram_percent}%`;
+    if (ramProg) ramProg.style.width = `${Math.min(100, data.ram_percent)}%`;
+  }
+  if (data.os) {
+    const osEl = document.getElementById('osBadge');
+    if (osEl) osEl.innerText = data.os.toUpperCase();
+  }
+}
+
 // User Command Input Dispatcher
 function submitCommand() {
   const input = document.getElementById('cmdInput');
   const text = input.value.trim();
   if (!text) return;
 
-  appendMessage('User', text);
+  sendWS({ type: 'command', text: text });
   input.value = '';
-
-  setStatus('THINKING', 'MAYA IS THINKING...');
-
-  // Mock processing / trigger backend
-  setTimeout(() => {
-    setStatus('SPEAKING', 'EXECUTING ACTION...');
-    let reply = `Command '${text}' executed successfully.`;
-    if (text.toLowerCase().includes('who are you')) {
-      reply = "I am Maya, your personal AI assistant. Upgraded with cross-platform intelligence, advanced system automation, and lightning-fast voice execution.";
-    } else if (text.toLowerCase().includes('battery')) {
-      reply = "Battery is at 88%, currently connected to AC power.";
-    } else if (text.toLowerCase().includes('focus')) {
-      reply = "Focus Mode initiated: VS Code launched and ambient stream active.";
-    }
-    appendMessage('Maya', reply);
-
-    setTimeout(() => {
-      setStatus('IDLE', 'STANDBY // READY FOR WAKE WORD');
-    }, 2500);
-  }, 900);
 }
 
 document.getElementById('cmdInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') submitCommand();
 });
 
-// Telemetry Polling Simulator (real values populated when connected to backend)
-setInterval(() => {
-  const cpuVal = (Math.random() * 8 + 12).toFixed(1);
-  const ramVal = 42;
-  document.getElementById('cpuValue').innerText = `${cpuVal}%`;
-  document.getElementById('cpuProgress').style.width = `${cpuVal}%`;
-}, 2500);
+// Quick Action Card Dispatcher
+function triggerQuickAction(commandText) {
+  sendWS({ type: 'command', text: commandText });
+}
+
+// Persona Selector Dispatcher
+function switchPersona(selectElement) {
+  const personaKey = selectElement.value;
+  sendWS({ type: 'persona', persona: personaKey });
+}
+
+// ==========================================================================
+// BROWSER VOICE RECOGNITION (HTML5 Web Speech API)
+// Gives instant voice control right from the web browser!
+// ==========================================================================
+let recognition = null;
+let isBrowserListening = false;
+
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    console.warn('Web Speech API is not supported in this browser.');
+    return null;
+  }
+
+  const rec = new SpeechRecognition();
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.lang = 'en-US'; // Can also support 'vi-VN'
+
+  rec.onstart = () => {
+    isBrowserListening = true;
+    setStatus('LISTENING', 'LISTENING TO YOUR VOICE...');
+    const btn = document.getElementById('micBtn');
+    if (btn) btn.style.borderColor = '#00E5FF';
+  };
+
+  rec.onresult = (event) => {
+    const speechResult = event.results[0][0].transcript;
+    console.log('Recognized speech:', speechResult);
+    sendWS({ type: 'command', text: speechResult });
+  };
+
+  rec.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    isBrowserListening = false;
+    setStatus('IDLE', 'STANDBY // READY');
+  };
+
+  rec.onend = () => {
+    isBrowserListening = false;
+    const btn = document.getElementById('micBtn');
+    if (btn) btn.style.borderColor = 'rgba(0, 229, 255, 0.25)';
+  };
+
+  return rec;
+}
+
+recognition = initSpeechRecognition();
+
+function toggleBrowserSpeech() {
+  if (!recognition) {
+    alert('Web Speech Recognition is not supported in this browser. Please use Google Chrome or Edge, or use native microphone with wake word "Maya"!');
+    return;
+  }
+
+  if (isBrowserListening) {
+    recognition.stop();
+  } else {
+    try {
+      recognition.start();
+    } catch (e) {
+      console.warn('Recognition already started:', e);
+    }
+  }
+}
