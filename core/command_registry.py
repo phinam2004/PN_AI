@@ -176,32 +176,59 @@ class CommandRegistry:
         if any(w in command for w in ["tạm biệt phi nam", "tắt trợ lý", "dừng lại", "ngủ đi", "thoát", "stop maya", "exit"]):
             return "TERMINATE_SESSION"
 
-        # 2. Dynamic Search Queries (Google & YouTube)
-        for prefix in ["tìm kiếm google về ", "tìm kiếm trên google ", "tìm trên google ", "tìm google ", "search google for "]:
-            if prefix in command:
-                query = command.split(prefix, 1)[1].strip()
-                if query:
-                    webbrowser.open(f"https://www.google.com/search?q={query}")
-                    return f"Dạ, em đang tìm kiếm '{query}' trên Google cho anh ạ."
+        # Clean filler words from the end of commands (e.g., 'ngay lập tức', 'ngay', 'cho anh', 'nhé')
+        clean_cmd = re.sub(r'\s*(ngay lập tức|ngay bây giờ|ngay và luôn|ngay|cho anh|cho tôi|nhé|đi|nha|với|giúp anh|giúp tôi)+$', '', command).strip()
 
-        for prefix in ["tìm kiếm youtube về ", "tìm trên youtube ", "tìm youtube ", "search youtube for "]:
-            if prefix in command:
-                query = command.split(prefix, 1)[1].strip()
-                if query:
-                    webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
-                    return f"Dạ, em đang tìm kiếm '{query}' trên YouTube cho anh ạ."
+        # 2. Dynamic Search Queries (Google & YouTube) & Media Playback
+        # A. Flexible YouTube Play/Search: e.g. "mở nhạc thánh ca trên youtube", "bật sơn tùng trên youtube"
+        yt_pattern = re.search(r'(?:mở|bật|phát|nghe|tìm kiếm|tìm)?\s*(?:nhạc|bài hát|bài|video)?\s*(.*?)\s*(?:trên youtube|ở youtube|qua youtube|tại youtube)', clean_cmd)
+        if yt_pattern and yt_pattern.group(1).strip() and len(yt_pattern.group(1).strip()) >= 2:
+            query = yt_pattern.group(1).strip()
+            query = re.sub(r'^(nhạc|bài hát|bài|video)\s+', '', query).strip()
+            search_term = f"nhạc {query}" if not query.startswith("nhạc") else query
+            try:
+                import pywhatkit
+                pywhatkit.playonyt(search_term)
+            except Exception:
+                import urllib.parse
+                webbrowser.open(f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(search_term)}")
+            return f"Dạ, em đang mở {search_term} trên YouTube cho anh đây ạ."
 
-        for prefix in ["phát bài hát ", "bật bài hát ", "mở bài hát ", "nghe bài ", "bật bài ", "mở bài ", "play "]:
-            if command.startswith(prefix) or prefix in command:
-                song = command.split(prefix, 1)[1].strip()
+        # B. Prefix Play Commands: e.g. "mở nhạc trẻ", "phát bài lãng quên chiều thu"
+        music_prefixes = [
+            "mở nhạc ", "bật nhạc ", "phát nhạc ", "nghe nhạc ",
+            "mở bài hát ", "bật bài hát ", "phát bài hát ", "nghe bài hát ",
+            "mở bài ", "bật bài ", "phát bài ", "nghe bài ", "play music ", "play "
+        ]
+        for prefix in music_prefixes:
+            if clean_cmd.startswith(prefix) or prefix in clean_cmd:
+                song = clean_cmd.split(prefix, 1)[1].strip()
+                song = re.sub(r'\s*(trên youtube|ở youtube|trên mạng)$', '', song).strip()
                 if song:
                     try:
                         import pywhatkit
                         pywhatkit.playonyt(song)
-                        return f"Dạ, em đang mở bài hát {song} trên YouTube cho anh ạ."
                     except Exception:
-                        webbrowser.open(f"https://www.youtube.com/results?search_query={song}")
-                        return f"Dạ, em đang mở bài hát {song} trên YouTube cho anh ạ."
+                        import urllib.parse
+                        webbrowser.open(f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(song)}")
+                    return f"Dạ, em đang mở bài {song} trên YouTube cho anh ạ."
+
+        # C. Google Search Commands
+        gg_pattern = re.search(r'(?:tìm kiếm|tìm)?\s*(.*?)\s*(?:trên google|ở google|qua google)', clean_cmd)
+        if gg_pattern and gg_pattern.group(1).strip() and len(gg_pattern.group(1).strip()) >= 2:
+            query = gg_pattern.group(1).strip()
+            query = re.sub(r'^(kiếm|về|thông tin về)\s+', '', query).strip()
+            import urllib.parse
+            webbrowser.open(f"https://www.google.com/search?q={urllib.parse.quote_plus(query)}")
+            return f"Dạ, em đang tìm kiếm '{query}' trên Google cho anh ạ."
+
+        for prefix in ["tìm kiếm google về ", "tìm kiếm trên google ", "tìm trên google ", "tìm google ", "search google for "]:
+            if prefix in clean_cmd:
+                query = clean_cmd.split(prefix, 1)[1].strip()
+                if query:
+                    import urllib.parse
+                    webbrowser.open(f"https://www.google.com/search?q={urllib.parse.quote_plus(query)}")
+                    return f"Dạ, em đang tìm kiếm '{query}' trên Google cho anh ạ."
 
         # 3. Dynamic Folder Open
         if command.startswith("mở thư mục "):
