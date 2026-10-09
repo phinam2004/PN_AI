@@ -17,6 +17,13 @@ from core.system_automation import system_automation
 from core.command_registry import command_registry
 from core.premium_features import premium_suite
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 # Backward-compatibility constants
 GIF_PATH = "maya_animation.gif"
 
@@ -25,7 +32,7 @@ def show_startup_gif():
     hud_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "web_hud", "index.html"))
     if os.path.exists(hud_file):
         webbrowser.open(f"file://{hud_file}")
-        print(f"✅ Modern Maya Cockpit HUD opened at: {hud_file}")
+        print(f"[OK] Modern Maya Cockpit HUD opened at: {hud_file}")
         return
 
     # Fallback GIF animation
@@ -34,7 +41,7 @@ def show_startup_gif():
         html_file = "maya_animation.html"
         html_path = os.path.abspath(html_file)
         webbrowser.open(f"file://{html_path}")
-        print("✅ Maya AI animation opened in browser")
+        print("[OK] Maya AI animation opened in browser")
 
 def speak(text):
     """Cross-platform text-to-speech."""

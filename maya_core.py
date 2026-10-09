@@ -3,6 +3,14 @@ import sys
 import webbrowser
 import threading
 import time
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 from core.platform_adapter import platform_adapter
 from core.voice_engine import voice_engine
 from core.ai_engine import ai_engine
@@ -24,7 +32,7 @@ class MayaCore:
         """Opens the modern Google Labs compliant Web HUD."""
         if os.path.exists(self.hud_path):
             webbrowser.open(f"file://{self.hud_path}")
-            print(f"✅ Modern Maya Cockpit HUD launched at: file://{self.hud_path}")
+            print(f"[OK] Modern Maya Cockpit HUD launched at: file://{self.hud_path}")
         else:
             # Fallback to GIF or local HTML
             gif_html = os.path.abspath(os.path.join(os.path.dirname(__file__), "maya_animation.html"))
@@ -54,9 +62,9 @@ class MayaCore:
         voice_engine.speak(f"Maya AI activated on {platform_adapter.os_type}. All systems operational.")
 
         print("\n" + "="*60)
-        print(f" 🤖 MAYA AI v1.2 NEXT-GEN ({platform_adapter.os_type} Edition)")
-        print(" 💡 Say 'Maya' or type your command below.")
-        print(" 💡 Type 'exit' or 'stop maya' to quit.")
+        print(f" [MAYA AI] v1.2 NEXT-GEN ({platform_adapter.os_type} Edition)")
+        print(" [INFO] Say 'Maya' or type your command below.")
+        print(" [INFO] Type 'exit' or 'stop maya' to quit.")
         print("="*60 + "\n")
 
         while self.is_running:
