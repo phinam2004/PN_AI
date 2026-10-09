@@ -35,6 +35,18 @@ class VoiceEngine:
         self.has_edge_tts = self._check_edge_tts()
         self.has_speech_recognition = self._check_speech_recognition()
 
+        # Initialize speech recognizer once
+        self.recognizer = None
+        if self.has_speech_recognition:
+            try:
+                import speech_recognition as sr
+                self.recognizer = sr.Recognizer()
+                self.recognizer.dynamic_energy_threshold = True
+                self.recognizer.energy_threshold = 280
+                self.recognizer.pause_threshold = 0.8
+            except Exception:
+                pass
+
         # Start background TTS worker thread
         self.tts_thread = threading.Thread(target=self._process_tts_queue, daemon=True)
         self.tts_thread.start()
@@ -182,31 +194,29 @@ class VoiceEngine:
         """
         Listen for user voice command using Vietnamese and English speech recognition.
         """
-        if self.has_speech_recognition:
+        if self.has_speech_recognition and self.recognizer:
             try:
                 import speech_recognition as sr
-                recognizer = sr.Recognizer()
-                recognizer.dynamic_energy_threshold = True
-
                 with sr.Microphone() as source:
-                    recognizer.adjust_for_ambient_noise(source, duration=0.2)
                     self.is_listening = True
-                    audio = recognizer.listen(source, timeout=timeout, phrase_time_limit=phrase_time)
+                    audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=phrase_time)
                     self.is_listening = False
 
-                # Primary: Vietnamese recognition (handles Vietnamese & English names well)
+                # Primary: Vietnamese recognition
                 try:
-                    text = recognizer.recognize_google(audio, language=self.language)
+                    text = self.recognizer.recognize_google(audio, language=self.language)
                     return text.strip()
                 except Exception:
-                    # Fallback to English if Vietnamese recognition has no match
-                    text = recognizer.recognize_google(audio, language="en-US")
-                    return text.strip()
+                    # Fallback to English
+                    try:
+                        text = self.recognizer.recognize_google(audio, language="en-US")
+                        return text.strip()
+                    except Exception:
+                        return ""
             except Exception:
                 self.is_listening = False
                 return ""
-        else:
-            return ""
+        return ""
 
     def shutdown(self):
         self._stop_event.set()

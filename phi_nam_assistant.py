@@ -2,6 +2,7 @@
 =============================================================================
 PHI NAM AI - TRỢ LÝ ẢO ĐIỀU KHIỂN BẰNG GIỌNG NÓI TRÊN MÁY TÍNH
 - Kích hoạt bằng giọng nói: "Phi Nam", "Phi Nam ơi", "Hey Phi Nam"
+- Nhận diện nhạy bén (bắt trọn cả các trường hợp Google nghe thành 'Việt Nam ơi')
 - Chạy trực tiếp trên Windows, KHÔNG CẦN MỞ TRÌNH DUYỆT WEB
 - Tự động hóa hệ thống: Mở app, tăng giảm âm lượng, chụp màn hình, tìm kiếm...
 =============================================================================
@@ -10,11 +11,12 @@ PHI NAM AI - TRỢ LÝ ẢO ĐIỀU KHIỂN BẰNG GIỌNG NÓI TRÊN MÁY TÍNH
 import os
 import sys
 import time
+import re
 
 if sys.platform == "win32":
     try:
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
     except Exception:
         pass
 
@@ -23,35 +25,64 @@ from core.voice_engine import voice_engine
 from core.command_registry import command_registry
 from core.system_automation import system_automation
 
-# Danh sách từ khóa đánh thức trợ lý
+# Danh sách từ khóa đánh thức trợ lý (Bao gồm cả các biến thể âm học Google Speech API dễ nghe)
 WAKE_WORDS = [
-    "phi nam",
-    "phinam",
     "phi nam ơi",
     "phi nam oi",
+    "phi nam",
+    "phinam",
     "hey phi nam",
     "ê phi nam",
     "e phi nam",
     "chào phi nam",
-    "maya" # Giữ lại làm từ khóa phụ
+    # Các biến thể do Google Speech API tự sửa chính tả:
+    "việt nam ơi",
+    "việt nam oi",
+    "viet nam oi",
+    "việt nam",
+    "viet nam",
+    "khi nam",
+    "thì nam",
+    "huy nam",
+    "vi nam",
+    "maya"
 ]
 
-def is_wake_word(text: str) -> bool:
-    """Kiểm tra xem câu nói có chứa từ khóa gọi tên Phi Nam không."""
+def detect_wake_and_extract_command(text: str):
+    """
+    Kiểm tra xem câu nói có chứa từ khóa gọi tên Phi Nam không.
+    Nếu có lệnh đi kèm trong cùng 1 câu (ví dụ: 'Phi Nam ơi mở Chrome'),
+    tách riêng câu lệnh để thực thi ngay lập tức.
+    """
     if not text:
-        return False
+        return False, ""
+
     clean = text.lower().strip()
-    return any(w in clean for w in WAKE_WORDS)
+    matched_wake = None
+    for w in WAKE_WORDS:
+        if w in clean:
+            matched_wake = w
+            break
+
+    if not matched_wake:
+        return False, ""
+
+    # Loại bỏ từ khóa đánh thức để lấy phần câu lệnh đi kèm (nếu có)
+    remainder = clean.replace(matched_wake, "").strip()
+    # Loại bỏ các từ đệm ở đầu như: "ơi", "ơi em", "hãy", "làm ơn", "giúp anh"
+    remainder = re.sub(r'^(ơi|em|hãy|làm ơn|giúp anh|giúp tôi|nhé)\s*', '', remainder).strip()
+
+    return True, remainder
 
 def run_phi_nam_assistant():
-    print("\n" + "="*65)
-    print(" 🤖 TRỢ LÝ ẢO PHI NAM AI (PHIÊN BẢN CHẠY TRỰC TIẾP TRÊN MÁY TÍNH)")
-    print(" 🎙️ TỪ KHÓA KÍCH HOẠT: 'Phi Nam' hoặc 'Phi Nam ơi'")
-    print(" 💡 KHÔNG CẦN MỞ WEB - Đang lắng nghe trực tiếp từ Micro...")
-    print(" ❌ Nhấn Ctrl + C hoặc nói 'Tạm biệt Phi Nam' để tắt")
-    print("="*65 + "\n")
+    print("\n" + "="*65, flush=True)
+    print(" 🤖 TRỢ LÝ ẢO PHI NAM AI (PHIÊN BẢN CHẠY TRỰC TIẾP TRÊN MÁY TÍNH)", flush=True)
+    print(" 🎙️ TỪ KHÓA KÍCH HOẠT: 'Phi Nam' hoặc 'Phi Nam ơi'", flush=True)
+    print(" 💡 KHÔNG CẦN MỞ WEB - Đang lắng nghe trực tiếp từ Micro...", flush=True)
+    print(" ❌ Nhấn Ctrl + C hoặc nói 'Tạm biệt Phi Nam' để tắt", flush=True)
+    print("="*65 + "\n", flush=True)
 
-    # Phát âm thanh khởi động
+    # Phát âm thanh chuông khởi động
     voice_engine.play_wake_chime()
     voice_engine.speak("Trợ lý ảo Phi Nam đã sẵn sàng phục vụ anh.", sync=True)
 
@@ -59,56 +90,71 @@ def run_phi_nam_assistant():
 
     while is_running:
         try:
-            # 1. Lắng nghe từ khóa đánh thức
             print("[Đang nghe từ khóa 'Phi Nam']...", end="\r", flush=True)
-            voice_text = voice_engine.listen(timeout=3, phrase_time=4)
+            voice_text = voice_engine.listen(timeout=4, phrase_time=5)
 
             if not voice_text:
                 time.sleep(0.3)
                 continue
 
-            print(f"\n[Âm thanh nhận dạng]: {voice_text}")
+            print(f"\n[Âm thanh nhận dạng]: {voice_text}", flush=True)
 
-            if is_wake_word(voice_text):
-                # Đã gọi đúng tên Phi Nam!
-                print("\n>>> ĐÃ KÍCH HOẠT TRỢ LÝ PHI NAM! <<<")
+            has_wake, inline_cmd = detect_wake_and_extract_command(voice_text)
+
+            if has_wake:
+                print("\n>>> ĐÃ KÍCH HOẠT TRỢ LÝ PHI NAM! <<<", flush=True)
                 voice_engine.play_wake_chime()
-                voice_engine.speak("Dạ, em nghe anh Phi Nam!", sync=True)
 
-                # 2. Tiếp nhận câu lệnh tiếp theo
-                print("[Đang nghe câu lệnh của anh...] ")
-                cmd = voice_engine.listen(timeout=6, phrase_time=8)
-
-                if cmd:
-                    print(f"[Câu lệnh nhận được]: {cmd}")
-                    reply = command_registry.dispatch(cmd)
-
+                # Trường hợp 1: Người dùng nói gộp cả tên và lệnh (VD: "Phi Nam ơi mở Chrome")
+                if inline_cmd and len(inline_cmd) >= 3:
+                    print(f"[Thực thi lệnh đi kèm]: {inline_cmd}", flush=True)
+                    reply = command_registry.dispatch(inline_cmd)
                     if reply == "TERMINATE_SESSION":
-                        voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày làm việc hiệu quả!", sync=True)
-                        is_running = False
+                        voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
                         break
-
                     if reply:
-                        print(f"[Phi Nam phản hồi]: {reply}")
+                        print(f"[Phi Nam phản hồi]: {reply}", flush=True)
                         voice_engine.speak(reply, sync=True)
+
+                # Trường hợp 2: Người dùng chỉ gọi tên "Phi Nam ơi"
                 else:
-                    voice_engine.speak("Em chưa nghe rõ lệnh, anh cần em giúp gì cứ gọi Phi Nam nhé!", sync=True)
+                    voice_engine.speak("Dạ, em nghe anh Phi Nam!", sync=True)
+                    print("[Đang lắng nghe câu lệnh tiếp theo của anh...] ", flush=True)
+                    cmd = voice_engine.listen(timeout=6, phrase_time=8)
+
+                    if cmd:
+                        print(f"[Câu lệnh nhận được]: {cmd}", flush=True)
+                        reply = command_registry.dispatch(cmd)
+
+                        if reply == "TERMINATE_SESSION":
+                            voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
+                            break
+
+                        if reply:
+                            print(f"[Phi Nam phản hồi]: {reply}", flush=True)
+                            voice_engine.speak(reply, sync=True)
+                    else:
+                        voice_engine.speak("Dạ, em chưa nghe rõ. Anh cần em giúp gì cứ gọi Phi Nam nhé!", sync=True)
 
             else:
-                # Kiểm tra nếu người dùng nói thẳng lệnh (ví dụ: 'tăng âm lượng', 'chụp màn hình')
-                # Nếu câu lệnh khớp với hệ thống, vẫn hỗ trợ thực thi nhanh
+                # Nếu người dùng nói thẳng lệnh phổ biến mà quên gọi tên
                 lower_text = voice_text.lower()
-                if any(k in lower_text for k in ["tăng âm lượng", "giảm âm lượng", "chụp màn hình", "tắt tiếng", "mở chrome", "mở vs code"]):
+                direct_cmds = [
+                    "mở chrome", "bật chrome", "mở vs code", "mở code",
+                    "tăng âm lượng", "giảm âm lượng", "tắt tiếng", "bật tiếng",
+                    "chụp màn hình", "khóa màn hình", "ẩn hết cửa sổ"
+                ]
+                if any(k in lower_text for k in direct_cmds):
                     reply = command_registry.dispatch(voice_text)
                     if reply and reply != "TERMINATE_SESSION":
-                        print(f"[Thực thi nhanh]: {reply}")
+                        print(f"[Thực thi nhanh]: {reply}", flush=True)
+                        voice_engine.play_wake_chime()
                         voice_engine.speak(reply, sync=True)
 
         except KeyboardInterrupt:
-            print("\nĐã dừng trợ lý Phi Nam AI.")
+            print("\nĐã dừng trợ lý Phi Nam AI.", flush=True)
             break
         except Exception as e:
-            # Ngăn ngừa sập vòng lặp
             time.sleep(0.5)
 
     voice_engine.shutdown()
