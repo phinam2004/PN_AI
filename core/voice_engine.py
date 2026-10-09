@@ -74,7 +74,26 @@ class VoiceEngine:
 
     def _synthesize_and_play(self, text: str):
         """Synthesize audio with best available engine and play it back."""
-        # Method 1: Edge-TTS (Ultra realistic neural voice)
+        # Method 1: Windows Native SAPI.SpVoice (Instant, 0 latency, 0 hang)
+        if platform_adapter.is_windows:
+            try:
+                safe_text = text.replace("'", "''").replace('"', '').replace('\n', ' ')
+                ps_script = f"(New-Object -ComObject SAPI.SpVoice).Speak('{safe_text}')"
+                subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], check=True, capture_output=True, timeout=10)
+                return
+            except Exception as e:
+                pass
+
+        # Method 2: macOS Native 'say'
+        if platform_adapter.is_macos:
+            try:
+                safe_text = text.replace('"', '\\"')
+                subprocess.run(["say", safe_text], check=True, timeout=10)
+                return
+            except Exception:
+                pass
+
+        # Method 3: Edge-TTS
         if self.has_edge_tts:
             try:
                 temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
@@ -92,34 +111,16 @@ class VoiceEngine:
                 except Exception:
                     pass
                 return
-            except Exception as e:
-                print(f"[VoiceEngine] Edge-TTS playback fallback triggered: {e}")
-
-        # Method 2: macOS Native 'say'
-        if platform_adapter.is_macos:
-            try:
-                safe_text = text.replace('"', '\\"')
-                subprocess.run(["say", safe_text], check=True)
-                return
-            except Exception:
-                pass
-
-        # Method 3: Windows PowerShell Speech Synthesizer (Zero extra dependencies)
-        if platform_adapter.is_windows:
-            try:
-                safe_text = text.replace('"', '""').replace("'", "''")
-                ps_script = f'Add-Type -AssemblyName System.speech; $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer; $speak.Speak("{safe_text}");'
-                subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], check=True, capture_output=True)
-                return
             except Exception:
                 pass
 
         # Method 4: Linux spd-say / espeak
         if platform_adapter.is_linux:
+            import shutil
             for bin_cmd in ["spd-say", "espeak-ng", "espeak"]:
                 if shutil.which(bin_cmd):
                     try:
-                        subprocess.run([bin_cmd, text], check=True)
+                        subprocess.run([bin_cmd, text], check=True, timeout=10)
                         return
                     except Exception:
                         continue
@@ -130,9 +131,8 @@ class VoiceEngine:
     def _play_audio_file(self, file_path: str):
         """Cross-platform audio file playback."""
         if platform_adapter.is_windows:
-            # Try playsound / sounddevice / PowerShell
             try:
-                ps_cmd = f"(New-Object Media.SoundPlayer '{file_path}').PlaySync()"
+                ps_cmd = f"$wmp = New-Object -ComObject WMPlayer.OCX; $wmp.URL = '{file_path}'; while ($wmp.playState -ne 1 -and $wmp.playState -ne 8) {{ Start-Sleep -Milliseconds 100 }}"
                 subprocess.run(["powershell", "-NoProfile", "-Command", ps_cmd], check=True, capture_output=True)
                 return
             except Exception:

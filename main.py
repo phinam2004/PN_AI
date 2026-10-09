@@ -31,8 +31,14 @@ def show_startup_gif():
     """Show the modern Google Labs compliant Web HUD or fallback GIF."""
     hud_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "web_hud", "index.html"))
     if os.path.exists(hud_file):
-        webbrowser.open(f"file://{hud_file}")
-        print(f"[OK] Modern Maya Cockpit HUD opened at: {hud_file}")
+        try:
+            if sys.platform == "win32":
+                os.startfile(hud_file)
+            else:
+                webbrowser.open(f"file://{hud_file}")
+        except Exception:
+            webbrowser.open(f"file://{hud_file}")
+        print(f"[OK] Modern Maya Cockpit HUD opened at: {hud_file}", flush=True)
         return
 
     # Fallback GIF animation
@@ -40,8 +46,14 @@ def show_startup_gif():
     if os.path.exists(gif_absolute_path):
         html_file = "maya_animation.html"
         html_path = os.path.abspath(html_file)
-        webbrowser.open(f"file://{html_path}")
-        print("[OK] Maya AI animation opened in browser")
+        try:
+            if sys.platform == "win32":
+                os.startfile(html_path)
+            else:
+                webbrowser.open(f"file://{html_path}")
+        except Exception:
+            webbrowser.open(f"file://{html_path}")
+        print("[OK] Maya AI animation opened in browser", flush=True)
 
 def speak(text):
     """Cross-platform text-to-speech."""
