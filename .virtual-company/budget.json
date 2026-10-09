@@ -1,0 +1,17 @@
+{
+  "project": "Maya AI 1.2 -> 1.7 / 2.0 Comprehensive Upgrade",
+  "cost_limit_tokens": 1000000,
+  "circuit_breaker": {
+    "max_retries_per_error": 3,
+    "max_tool_steps_per_subtask": 10,
+    "current_error_retries": 0,
+    "is_tripped": false
+  },
+  "roles": {
+    "planner": "CEO / Lead Architect",
+    "coder": "Senior Full-Stack Developer",
+    "tester": "QA Engineer",
+    "reviewer": "Governance Reviewer"
+  },
+  "created_at": "2026-10-09T20:05:00+07:00"
+}

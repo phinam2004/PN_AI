@@ -1,277 +1,122 @@
-import speech_recognition as sr
-import subprocess
-import webbrowser
+"""
+Maya AI - Advanced Cross-Platform Personal Voice Assistant (v1.2 Next-Gen)
+Fully upgraded with Windows, macOS, Linux support, Smarter AI Engine,
+Modern Web HUD, and Autonomous System Automation.
+"""
+
 import os
-import pywhatkit
-import ollama
-import pyautogui
+import sys
+import time
+import webbrowser
 from datetime import datetime
 
-recognizer = sr.Recognizer()
+from core.platform_adapter import platform_adapter
+from core.voice_engine import voice_engine
+from core.ai_engine import ai_engine
+from core.system_automation import system_automation
+from core.command_registry import command_registry
+from core.premium_features import premium_suite
 
-# GIF Animation Configuration
-GIF_PATH = "maya_animation.gif"  # Change this to your GIF filename
+# Backward-compatibility constants
+GIF_PATH = "maya_animation.gif"
 
 def show_startup_gif():
-    """Show GIF animation in browser"""
-    try:
-        # Get absolute path
-        gif_absolute_path = os.path.abspath(GIF_PATH)
-        
-        # Check if file exists
-        if os.path.exists(gif_absolute_path):
-            # Create HTML file with GIF
-            html_content = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Maya AI</title>
-    <style>
-        body {{
-            margin: 0;
-            padding: 0;
-            background: black;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }}
-       
-        .maya-gif {{
-            max-width: 90vw;
-            max-height: 90vh;
-    
-        }}
-      
-    </style>
-</head>
-<body>
-    <div class="maya-container">
-        <img src="file://{gif_absolute_path}" alt="Maya AI Animation" class="maya-gif">
-    </div>
-</body>
-</html>
-            """
-            
-            # Save HTML file
-            html_file = "maya_animation.html"
-            with open(html_file, "w", encoding="utf-8") as f:
-                f.write(html_content)
-            
-            # Open HTML in browser
-            html_path = os.path.abspath(html_file)
-            webbrowser.open(f"file://{html_path}")
-            print("✅ Maya AI animation opened in browser")
-            
-        else:
-            print(f"❌ GIF file not found: {gif_absolute_path}")
-            print("💡 Using fallback animation...")
-            
-            # Open fallback animation
-            fallback_path = os.path.abspath("maya_fallback_animation.html")
-            webbrowser.open(f"file://{fallback_path}")
-            print("✅ Maya AI fallback animation opened in browser")
-            
-    except Exception as e:
-        print(f"❌ GIF Error: {e}")
-        print("💡 Continuing without animation...")
+    """Show the modern Google Labs compliant Web HUD or fallback GIF."""
+    hud_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "web_hud", "index.html"))
+    if os.path.exists(hud_file):
+        webbrowser.open(f"file://{hud_file}")
+        print(f"✅ Modern Maya Cockpit HUD opened at: {hud_file}")
+        return
+
+    # Fallback GIF animation
+    gif_absolute_path = os.path.abspath(GIF_PATH)
+    if os.path.exists(gif_absolute_path):
+        html_file = "maya_animation.html"
+        html_path = os.path.abspath(html_file)
+        webbrowser.open(f"file://{html_path}")
+        print("✅ Maya AI animation opened in browser")
 
 def speak(text):
-    try:
-        print("maya:", text)
-        safe_text = text.replace('"', '\\"')
-        os.system(f'say "{safe_text}"')
-    except Exception as e:
-        print("Speech Error:", e)
+    """Cross-platform text-to-speech."""
+    voice_engine.speak(text)
 
-# -------------------- INTRODUCTION -------------------- #
 def introduce_yourself():
-    speak("""
-Hello! I am Maya.
+    """Introduces Maya with persona context."""
+    intro_text = (
+        "Hello! I am Maya. Upgraded with cross-platform architecture for Windows, macOS, and Linux. "
+        "I am smart, fast, and equipped with advanced system automation and local AI intelligence. "
+        "What can I do for you, boss?"
+    )
+    speak(intro_text)
 
-Created by Taha.
-
-I am not just a simple assistant — I am smart, fast, and always ready to help.
-
-I can control your system, search anything, play music and write code, 
-and assist you like a real AI companion.
-
-What do you want me to do?
-""")
-
-# -------------------- FOLDER SEARCH -------------------- #
 def open_folder_anywhere(foldername):
-    try:
-        # simple search (no complex query)
-        result = subprocess.run(
-            ["mdfind", foldername],
-            capture_output=True,
-            text=True
-        )
-
-        results = result.stdout.strip().split("\n")
-
-        # sirf folders filter karo
-        folders = [f for f in results if os.path.isdir(f)]
-
-        if folders:
-            path = folders[0]
-            speak("Opening folder")
-            subprocess.run(["open", path])
-        else:
-            speak("Folder not found boss")
-
-    except Exception as e:
-        print("Folder Search Error:", e)
-        speak("Error while opening folder")
-
-
+    """Cross-platform smart folder search & open."""
+    if platform_adapter.find_and_open_folder(foldername):
+        speak(f"Opening folder {foldername}")
+    else:
+        speak("Folder not found boss")
 
 def ask_local_ai(prompt):
-    try:
-        response = ollama.chat(
-            model="llama3",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response["message"]["content"]
-    except Exception as e:
-        print("Ollama Error:", e)
-        return "Sorry boss, AI is not responding."
+    """Queries the smart hybrid AI engine with conversational memory."""
+    return ai_engine.ask(prompt)
 
 def listen_command(timeout=5, phrase_time=6):
-    try:
-        with sr.Microphone() as source:
-            recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            print("Listening...")
-            audio = recognizer.listen(
-                source,
-                timeout=timeout,
-                phrase_time_limit=phrase_time
-            )
-
-        text = recognizer.recognize_google(audio, language="en-IN")
-        return text
-
-    except sr.WaitTimeoutError:
-        return ""
-    except:
-        return ""
-
-def play_song(command):
-    try:
-        song = command.lower().replace("play", "", 1).strip()
-
-        if not song:
-            speak("Please tell me the song name.")
-            return
-
-        speak(f"Playing {song} on YouTube")
-        pywhatkit.playonyt(song)
-
-    except:
-        speak("Sorry boss")
+    """Listens for voice commands via cross-platform voice engine."""
+    return voice_engine.listen(timeout=timeout, phrase_time=phrase_time)
 
 def take_screenshot():
-    if not os.path.exists("screenshots"):
-        os.makedirs("screenshots")
+    """Captures and opens a system screenshot across platforms."""
+    path = platform_adapter.take_screenshot("screenshots")
+    if path:
+        speak("Screenshot taken")
+        return path
+    else:
+        speak("Failed to take screenshot")
+        return None
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_path = f"screenshots/screenshot_{timestamp}.png"
-
-    screenshot = pyautogui.screenshot()
-    screenshot.save(file_path)
-
-    os.system(f"open {file_path}")
-    return file_path
-
-# -------------------- COMMAND PROCESSOR -------------------- #
 def process_command(command):
-    command = command.lower().strip()
+    """Dispatches command to the central extensible router."""
+    if not command:
+        return
+    response = command_registry.dispatch(command)
+    if response == "TERMINATE_SESSION":
+        speak("Goodbye boss")
+        raise SystemExit
+    elif response:
+        speak(response)
 
-    try:
-        if "open visual studio code" in command or "open vs code" in command:
-            speak("Opening Visual Studio Code")
-            subprocess.run(["open", "-a", "Visual Studio Code"])
-
-        elif "open safari" in command:
-            speak("Opening Safari")
-            subprocess.run(["open", "-a", "Safari"])
-
-        elif "open chrome" in command:
-            speak("Opening Chrome")
-            subprocess.run(["open", "-a", "Google Chrome"])
-
-        elif "open youtube" in command:
-            speak("Opening YouTube")
-            webbrowser.open("https://youtube.com")
-
-        elif "open whatsApp" in command:
-            speak("Opening whatsApp ")
-            subprocess.run(["open", "-a", "WhatsApp"])    
-
-        elif "tell me about yourself" in command or "introduce yourself" in command or "who are you" in command:
-            introduce_yourself()
-
-        elif "folder" in command and command.startswith("open"):
-            foldername = command.replace("open", "").replace("folder", "").strip()
-            open_folder_anywhere(foldername)
-
-        elif command.startswith("play "):
-            play_song(command)
-
-
-        elif "search youtube for" in command:
-            query = command.replace("search youtube for", "").strip()
-            webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
-
-        elif "search google for" in command:
-            query = command.replace("search google for", "").strip()
-            webbrowser.open(f"https://www.google.com/search?q={query}")
-
-        elif "screenshot" in command:
-            take_screenshot()
-            speak("Screenshot taken")
-
-        elif "stop maya" in command:
-            speak("Goodbye boss")
-            raise SystemExit
-      
-        else:
-            speak("Thinking boss")
-            reply = ask_local_ai(command)
-            speak(reply)
-
-    except Exception as e:
-        print("Command Error:", e)
-        speak("Error boss")
-
-# -------------------- MAIN LOOP -------------------- #
 def start_maya():
-    # Show GIF in browser first
+    """Starts Maya AI assistant with modern UI and responsive listening loop."""
     show_startup_gif()
-    
-    speak("Maya is activated")
+    speak(f"Maya is activated on {platform_adapter.os_type}")
+
+    print("\n" + "="*50)
+    print(f" Maya AI v1.2 [{platform_adapter.os_type}] Ready")
+    print("="*50 + "\n")
 
     while True:
         try:
-            word = listen_command(timeout=5, phrase_time=3)
-
+            word = listen_command(timeout=4, phrase_time=3)
             if not word:
+                time.sleep(0.5)
                 continue
 
             if "maya" in word.lower():
                 speak("Yes boss")
-
-                command = listen_command(timeout=7, phrase_time=8)
-
+                command = listen_command(timeout=6, phrase_time=8)
                 if command:
                     process_command(command)
+            else:
+                # Direct voice command execution
+                process_command(word)
 
         except SystemExit:
             break
-        except:
-            pass
+        except KeyboardInterrupt:
+            print("\nMaya AI stopped by user")
+            break
+        except Exception as e:
+            print(f"[Maya Error]: {e}")
 
 if __name__ == "__main__":
     try:

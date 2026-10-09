@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maya AI Cockpit HUD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="hud-header">
+    <div class="brand-section">
+      <div class="brand-title">MAYA AI</div>
+      <div class="brand-badge">v1.2 NEXT-GEN</div>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusLabel">SYSTEM ONLINE</span>
+    </div>
+  </header>
+
+  <!-- Main Cockpit Layout -->
+  <main class="hud-layout">
+
+    <!-- Left Column: Hardware & Telemetry -->
+    <aside class="sidebar-telemetry">
+      <div class="section-title">Telemetry & System</div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span>CPU LOAD</span>
+          <span id="cpuValue">14.2%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-bar" id="cpuProgress" style="width: 14%;"></div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span>MEMORY USAGE</span>
+          <span id="ramValue">42.8%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-bar" id="ramProgress" style="width: 43%;"></div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span>AI ENGINE</span>
+          <span style="color: var(--accent-cyan);">OLLAMA HYBRID</span>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+          Model: Llama 3 (Offline Ready)
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span>PLATFORM</span>
+          <span id="osBadge" style="color: var(--signal-emerald);">CROSS-OS</span>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+          Win / Mac / Linux Adapter Active
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center Stage: Kinetic Orb & Transcripts -->
+    <section class="center-stage">
+      <div class="visualizer-container">
+        <canvas id="audioCanvas"></canvas>
+        <div class="stage-status-caption" id="stageStatusCaption">STANDBY // READY FOR WAKE WORD "MAYA"</div>
+      </div>
+
+      <div class="transcript-feed" id="transcriptFeed">
+        <div class="message-bubble message-maya">
+          <div class="message-meta">MAYA • CORE ACTIVATED</div>
+          <div>Hello Boss! Maya 1.2 is ready with Cross-Platform Support, Faster Performance, and Advanced Voice Automation.</div>
+        </div>
+      </div>
+
+      <div class="command-input-container">
+        <button class="mic-btn" id="micBtn" onclick="setStatus('LISTENING', 'LISTENING FOR VOICE COMMAND...')">
+          🎙️ Speak
+        </button>
+        <input type="text" id="cmdInput" class="cmd-input" placeholder="Say a voice command or type here (e.g. 'Open VS Code', 'Volume Up')...">
+        <button class="send-btn" onclick="submitCommand()">Send</button>
+      </div>
+    </section>
+
+    <!-- Right Drawer: Quick Actions & Personas -->
+    <aside class="right-drawer">
+      <div class="section-title">Persona Studio</div>
+      <select class="persona-select" id="personaSelect" onchange="appendMessage('Maya', 'Persona switched to: ' + this.options[this.selectedIndex].text)">
+        <option value="maya_default">Maya (Balanced Executive)</option>
+        <option value="jarvis">Jarvis (British Butler)</option>
+        <option value="cyberpunk">Cyberpunk Terminal</option>
+        <option value="vietnamese_assistant">Maya Tiếng Việt (Studio Voice)</option>
+      </select>
+
+      <div class="section-title">Quick Automation</div>
+      <div class="action-list">
+        <div class="action-card" onclick="document.getElementById('cmdInput').value='Open VS Code'; submitCommand();">
+          <div class="action-name">Launch VS Code</div>
+          <div class="action-key">Dev App</div>
+        </div>
+        <div class="action-card" onclick="document.getElementById('cmdInput').value='Take Screenshot'; submitCommand();">
+          <div class="action-name">Capture Screenshot</div>
+          <div class="action-key">System</div>
+        </div>
+        <div class="action-card" onclick="document.getElementById('cmdInput').value='Volume Up'; submitCommand();">
+          <div class="action-name">Increase Volume</div>
+          <div class="action-key">Audio</div>
+        </div>
+        <div class="action-card" onclick="document.getElementById('cmdInput').value='Focus Mode'; submitCommand();">
+          <div class="action-name">⚡ Focus Mode Macro</div>
+          <div class="action-key">Workflow</div>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
