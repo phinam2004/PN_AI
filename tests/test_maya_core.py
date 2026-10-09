@@ -50,15 +50,15 @@ class TestMayaCrossPlatformCore(unittest.TestCase):
         """Verify command dispatch for both exact and fuzzy queries."""
         # Exact command
         reply_intro = command_registry.dispatch("introduce yourself")
-        self.assertIn("Maya", reply_intro)
+        self.assertTrue("Phi Nam" in reply_intro or "Maya" in reply_intro)
 
         # System telemetry command
         reply_telemetry = command_registry.dispatch("system status")
         self.assertIn("CPU", reply_telemetry)
 
-        # Fuzzy matching test ("intrduce yrself" or similar minor typo)
+        # Fuzzy matching test
         reply_fuzzy = command_registry.dispatch("tell me about yourself")
-        self.assertIn("Maya", reply_fuzzy)
+        self.assertTrue("Phi Nam" in reply_fuzzy or "Maya" in reply_fuzzy)
 
         # Battery check command
         reply_bat = command_registry.dispatch("battery level")

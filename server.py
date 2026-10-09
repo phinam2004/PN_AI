@@ -191,17 +191,19 @@ def native_mic_listener():
                 lower_text = detected_text.lower()
                 print(f"[Native Voice Heard]: {detected_text}")
 
-                if "maya" in lower_text:
+                # Check wake word: Phi Nam (or Maya)
+                if any(w in lower_text for w in ["phi nam", "phinam", "phi nam ơi", "phi nam oi", "hey phi nam", "maya"]):
                     # Wake Word Detected!
                     broadcast_ws_sync({
                         "type": "status",
                         "status": "LISTENING",
-                        "caption": "WAKE WORD DETECTED: 'MAYA' // LISTENING..."
+                        "caption": "WAKE WORD DETECTED: 'PHI NAM' // LISTENING..."
                     })
-                    voice_engine.speak("Yes boss?", sync=True)
+                    voice_engine.play_wake_chime()
+                    voice_engine.speak("Dạ, em nghe anh Phi Nam!", sync=True)
 
                     # Listen for actual command
-                    cmd = voice_engine.listen(timeout=6, phrase_time=7)
+                    cmd = voice_engine.listen(timeout=6, phrase_time=8)
                     if cmd:
                         print(f"[Native Voice Command]: {cmd}")
                         broadcast_ws_sync({
@@ -219,20 +221,20 @@ def native_mic_listener():
 
                         broadcast_ws_sync({
                             "type": "transcript",
-                            "sender": "Maya",
+                            "sender": "Phi Nam AI",
                             "text": reply
                         })
                         broadcast_ws_sync({
                             "type": "status",
                             "status": "SPEAKING",
-                            "caption": "MAYA RESPONDING..."
+                            "caption": "PHI NAM AI RESPONDING..."
                         })
                         voice_engine.speak(reply)
 
                     broadcast_ws_sync({
                         "type": "status",
                         "status": "IDLE",
-                        "caption": "STANDBY // READY FOR WAKE WORD 'MAYA'"
+                        "caption": "STANDBY // READY FOR WAKE WORD 'PHI NAM'"
                     })
         except Exception as e:
             # Prevent loop crash

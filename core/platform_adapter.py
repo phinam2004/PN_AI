@@ -84,6 +84,10 @@ class PlatformAdapter:
             "notepad": {"win": "notepad", "mac": "TextEdit", "linux": "gedit"},
             "terminal": {"win": "cmd", "mac": "Terminal", "linux": "x-terminal-emulator"},
             "calculator": {"win": "calc", "mac": "Calculator", "linux": "gnome-calculator"},
+            "zalo": {"win": "zalo", "mac": "Zalo", "linux": "zalo"},
+            "word": {"win": "winword", "mac": "Microsoft Word", "linux": "wps"},
+            "excel": {"win": "excel", "mac": "Microsoft Excel", "linux": "et"},
+            "powerpoint": {"win": "powerpnt", "mac": "Microsoft PowerPoint", "linux": "wpp"},
         }
 
         target_meta = known_apps.get(app_name_lower)

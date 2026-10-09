@@ -1,11 +1,11 @@
-# 🤖 Maya AI 1.2 (Cross-Platform Next-Gen Edition)
+# 🤖 Phi Nam AI (Cross-Platform Voice Assistant)
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](https://github.com/phinam2004/PN_AI)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-brightgreen?style=flat-square)](https://python.org)
 [![Design](https://img.shields.io/badge/Design%20Standard-Google%20Labs%20Stitch-orange?style=flat-square)](file:///c:/Users/PC/Documents/GitHub/PN_AI/DESIGN.md)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
+[![Wake Word](https://img.shields.io/badge/Wake%20Word-Phi%20Nam-green?style=flat-square)](file:///c:/Users/PC/Documents/GitHub/PN_AI/phi_nam_assistant.py)
 
-**Maya AI** is an advanced, ultra-responsive personal AI voice assistant with an event-driven architecture, cross-platform hardware abstraction, smart conversational memory, and a modern Cockpit HUD interface.
+**Phi Nam AI** là trợ lý ảo cá nhân điều khiển bằng giọng nói tiếng Việt & tiếng Anh, chạy trực tiếp trên máy tính Windows, macOS và Linux. Hỗ trợ kích hoạt bằng cách gọi tên **"Phi Nam"** hoặc **"Phi Nam ơi"** mà **không cần phải mở trình duyệt web**, đồng thời có khả năng tự khởi động ngầm cùng Windows.
 
 ---
 

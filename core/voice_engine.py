@@ -1,5 +1,13 @@
 import os
 import sys
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 import threading
 import queue
 import tempfile
@@ -12,10 +20,10 @@ from .platform_adapter import platform_adapter
 class VoiceEngine:
     """
     High-Fidelity Multi-Engine Text-to-Speech (TTS) and Speech-to-Text (STT) Controller.
-    Supports Edge-TTS Neural Voices, SAPI5/Pyttsx3, macOS 'say', and Linux espeak.
+    Optimized for Vietnamese (Edge-TTS Neural) and cross-platform native speech.
     """
 
-    def __init__(self, voice_name: str = "en-US-AriaNeural", language: str = "en-US"):
+    def __init__(self, voice_name: str = "vi-VN-HoaiMyNeural", language: str = "vi-VN"):
         self.voice_name = voice_name
         self.language = language
         self.speech_queue = queue.Queue()
@@ -35,22 +43,32 @@ class VoiceEngine:
         try:
             import edge_tts
             return True
-        except ImportError:
+        except Exception:
             return False
 
     def _check_speech_recognition(self) -> bool:
         try:
             import speech_recognition
             return True
-        except ImportError:
+        except Exception:
             return False
 
+    def play_wake_chime(self):
+        """Plays a pleasant wake alert chime when 'Phi Nam' is called."""
+        try:
+            if platform_adapter.is_windows:
+                import winsound
+                winsound.Beep(1200, 100)
+                winsound.Beep(1600, 130)
+        except Exception:
+            pass
+
     def speak(self, text: str, sync: bool = False):
-        """Queue text for non-blocking voice synthesis."""
+        """Queue text for voice synthesis."""
         if not text or not text.strip():
             return
         clean_text = text.strip()
-        print(f"[Maya Voice]: {clean_text}")
+        print(f"[Phi Nam Voice]: {clean_text}")
 
         if sync:
             self._synthesize_and_play(clean_text)
@@ -74,26 +92,7 @@ class VoiceEngine:
 
     def _synthesize_and_play(self, text: str):
         """Synthesize audio with best available engine and play it back."""
-        # Method 1: Windows Native SAPI.SpVoice (Instant, 0 latency, 0 hang)
-        if platform_adapter.is_windows:
-            try:
-                safe_text = text.replace("'", "''").replace('"', '').replace('\n', ' ')
-                ps_script = f"(New-Object -ComObject SAPI.SpVoice).Speak('{safe_text}')"
-                subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], check=True, capture_output=True, timeout=10)
-                return
-            except Exception as e:
-                pass
-
-        # Method 2: macOS Native 'say'
-        if platform_adapter.is_macos:
-            try:
-                safe_text = text.replace('"', '\\"')
-                subprocess.run(["say", safe_text], check=True, timeout=10)
-                return
-            except Exception:
-                pass
-
-        # Method 3: Edge-TTS
+        # Method 1: Edge-TTS Neural Voice (High fidelity Vietnamese/English)
         if self.has_edge_tts:
             try:
                 temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
@@ -105,11 +104,30 @@ class VoiceEngine:
                     await communicate.save(temp_file.name)
 
                 asyncio.run(generate_speech())
-                self._play_audio_file(temp_file.name)
+                self._play_audio_file(temp_file.name, text_len=len(text))
                 try:
                     os.remove(temp_file.name)
                 except Exception:
                     pass
+                return
+            except Exception:
+                pass
+
+        # Method 2: Windows Native SAPI.SpVoice via win32com
+        if platform_adapter.is_windows:
+            try:
+                import win32com.client
+                speaker = win32com.client.Dispatch("SAPI.SpVoice")
+                speaker.Speak(text)
+                return
+            except Exception:
+                pass
+
+        # Method 3: macOS Native 'say'
+        if platform_adapter.is_macos:
+            try:
+                safe_text = text.replace('"', '\\"')
+                subprocess.run(["say", safe_text], check=True, timeout=10)
                 return
             except Exception:
                 pass
@@ -126,14 +144,19 @@ class VoiceEngine:
                         continue
 
         # Fallback print if all speech engines fail
-        print(f"[VoiceEngine] (Audio output silent/unavailable): {text}")
+        print(f"[VoiceEngine] (Silent output): {text}")
 
-    def _play_audio_file(self, file_path: str):
+    def _play_audio_file(self, file_path: str, text_len: int = 20):
         """Cross-platform audio file playback."""
         if platform_adapter.is_windows:
             try:
-                ps_cmd = f"$wmp = New-Object -ComObject WMPlayer.OCX; $wmp.URL = '{file_path}'; while ($wmp.playState -ne 1 -and $wmp.playState -ne 8) {{ Start-Sleep -Milliseconds 100 }}"
-                subprocess.run(["powershell", "-NoProfile", "-Command", ps_cmd], check=True, capture_output=True)
+                import win32com.client, time
+                wmp = win32com.client.Dispatch("WMPlayer.OCX")
+                wmp.URL = file_path
+                wmp.controls.play()
+                # Estimate playback time: ~0.15s per character, min 1.5s, max 10s
+                wait_time = min(10.0, max(1.5, text_len * 0.15))
+                time.sleep(wait_time)
                 return
             except Exception:
                 pass
@@ -146,6 +169,7 @@ class VoiceEngine:
                 pass
 
         elif platform_adapter.is_linux:
+            import shutil
             for player in ["ffplay", "mpv", "aplay", "paplay"]:
                 if shutil.which(player):
                     try:
@@ -154,9 +178,9 @@ class VoiceEngine:
                     except Exception:
                         continue
 
-    def listen(self, timeout: int = 5, phrase_time: int = 6) -> str:
+    def listen(self, timeout: int = 4, phrase_time: int = 6) -> str:
         """
-        Listen for user voice command with graceful fallback to terminal input.
+        Listen for user voice command using Vietnamese and English speech recognition.
         """
         if self.has_speech_recognition:
             try:
@@ -167,17 +191,21 @@ class VoiceEngine:
                 with sr.Microphone() as source:
                     recognizer.adjust_for_ambient_noise(source, duration=0.2)
                     self.is_listening = True
-                    print("[VoiceEngine] Listening...")
                     audio = recognizer.listen(source, timeout=timeout, phrase_time_limit=phrase_time)
                     self.is_listening = False
 
-                text = recognizer.recognize_google(audio, language=self.language)
-                return text.strip()
+                # Primary: Vietnamese recognition (handles Vietnamese & English names well)
+                try:
+                    text = recognizer.recognize_google(audio, language=self.language)
+                    return text.strip()
+                except Exception:
+                    # Fallback to English if Vietnamese recognition has no match
+                    text = recognizer.recognize_google(audio, language="en-US")
+                    return text.strip()
             except Exception:
                 self.is_listening = False
                 return ""
         else:
-            # Fallback if speech_recognition or microphone driver is absent
             return ""
 
     def shutdown(self):
