@@ -246,5 +246,40 @@ class CommandRegistry:
         # 5. Smart AI Fallback (Ollama or Heuristic Conversational)
         return ai_engine.ask(command)
 
+    def can_handle(self, raw_command: str) -> bool:
+        """Checks if a command matches any known system, media, or search action."""
+        if not raw_command:
+            return False
+        cmd = raw_command.lower().strip()
+        clean = re.sub(r'\s*(ngay lập tức|ngay bây giờ|ngay và luôn|ngay|cho anh|cho tôi|nhé|đi|nha|với|giúp anh|giúp tôi)+$', '', cmd).strip()
+
+        # 1. Shutdown
+        if any(w in clean for w in ["tạm biệt phi nam", "tắt trợ lý", "dừng lại", "ngủ đi", "thoát", "stop"]):
+            return True
+
+        # 2. YouTube & Music
+        if any(w in clean for w in ["trên youtube", "ở youtube", "qua youtube", "youtube"]):
+            return True
+        for p in ["mở nhạc ", "bật nhạc ", "phát nhạc ", "nghe nhạc ", "mở bài ", "bật bài ", "play "]:
+            if clean.startswith(p) or p in clean:
+                return True
+
+        # 3. Google Search
+        if any(w in clean for w in ["trên google", "ở google", "tìm kiếm google", "tìm google"]):
+            return True
+
+        # 4. Folders
+        if clean.startswith("mở thư mục "):
+            return True
+
+        # 5. Registered Handlers
+        for h in self.handlers:
+            for kw in h["keywords"]:
+                if kw in clean or difflib.SequenceMatcher(None, kw, clean).ratio() > 0.82:
+                    return True
+
+        return False
+
 
 command_registry = CommandRegistry()
+

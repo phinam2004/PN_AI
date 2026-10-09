@@ -25,54 +25,32 @@ from core.voice_engine import voice_engine
 from core.command_registry import command_registry
 from core.system_automation import system_automation
 
-# Danh sách từ khóa đánh thức trợ lý (Bao gồm cả các biến thể âm học Google Speech API dễ nghe)
-WAKE_WORDS = [
-    "phi nam ơi",
-    "phi nam oi",
-    "phi nam",
-    "phinam",
-    "hey phi nam",
-    "ê phi nam",
-    "e phi nam",
-    "chào phi nam",
-    # Các biến thể do Google Speech API tự sửa chính tả:
-    "việt nam ơi",
-    "việt nam oi",
-    "viet nam oi",
-    "việt nam",
-    "viet nam",
-    "khi nam",
-    "thì nam",
-    "huy nam",
-    "vi nam",
-    "maya"
-]
+# Mẫu nhận diện từ khóa đánh thức toàn diện ở đầu câu:
+# Xử lý trọn vẹn cả các biến thể âm học Google Speech API thường nghe thành: "Việt Nam", "Vina mới", "Vinamilk", "Phi Lam", "Khi Nam"...
+WAKE_PREFIX_PATTERN = re.compile(
+    r'^(?:alo\s+|hey\s+|chào\s+|ê\s+|em\s+)?'
+    r'(?:phi\s*nam|việt\s*nam|vinamilk|vina\s*mới|vina|phi\s*lam|phi\s*lan|vi\s*nam|khi\s*nam|kỳ\s*nam|thì\s*nam|huy\s*nam|maya|trợ\s*lý)'
+    r'(?:\s+ơi|\s+oi|\s+à|\s+nè|\s+đâu)?'
+    r'(?:\s+hãy|\s+em|\s+làm\s+ơn|\s+giúp\s+anh|\s+giúp\s+tôi)?\s*',
+    re.IGNORECASE
+)
 
 def detect_wake_and_extract_command(text: str):
     """
     Kiểm tra xem câu nói có chứa từ khóa gọi tên Phi Nam không.
-    Nếu có lệnh đi kèm trong cùng 1 câu (ví dụ: 'Phi Nam ơi mở Chrome'),
-    tách riêng câu lệnh để thực thi ngay lập tức.
+    Tách từ khóa sạch sẽ ở đầu câu để lấy câu lệnh phía sau.
     """
     if not text:
         return False, ""
 
-    clean = text.lower().strip()
-    matched_wake = None
-    for w in WAKE_WORDS:
-        if w in clean:
-            matched_wake = w
-            break
+    clean = text.strip()
+    match = WAKE_PREFIX_PATTERN.match(clean)
+    if match:
+        cmd = clean[match.end():].strip()
+        cmd = re.sub(r'^(ơi|em|hãy|làm ơn|giúp anh|giúp tôi|nhé)\s*', '', cmd, flags=re.IGNORECASE).strip()
+        return True, cmd
 
-    if not matched_wake:
-        return False, ""
-
-    # Loại bỏ từ khóa đánh thức để lấy phần câu lệnh đi kèm (nếu có)
-    remainder = clean.replace(matched_wake, "").strip()
-    # Loại bỏ các từ đệm ở đầu như: "ơi", "ơi em", "hãy", "làm ơn", "giúp anh"
-    remainder = re.sub(r'^(ơi|em|hãy|làm ơn|giúp anh|giúp tôi|nhé)\s*', '', remainder).strip()
-
-    return True, remainder
+    return False, clean
 
 def run_phi_nam_assistant():
     print("\n" + "="*65, flush=True)
@@ -105,70 +83,60 @@ def run_phi_nam_assistant():
 
             has_wake, inline_cmd = detect_wake_and_extract_command(voice_text)
 
-            if has_wake:
+            # Trường hợp 1: Có từ khóa gọi tên VÀ có câu lệnh đi kèm (VD: "Phi Nam ơi mở nhạc Thánh Ca trên YouTube")
+            if has_wake and inline_cmd and len(inline_cmd) >= 2:
+                print(f"\n>>> ĐÃ KÍCH HOẠT & THỰC THI LỆNH: {inline_cmd} <<<", flush=True)
+                voice_engine.play_wake_chime()
+                reply = command_registry.dispatch(inline_cmd)
+                if reply == "TERMINATE_SESSION":
+                    if not voice_engine.play_cached_audio("goodbye.wav", sync=True):
+                        voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
+                    break
+                if reply:
+                    print(f"[Phi Nam phản hồi]: {reply}", flush=True)
+                    voice_engine.speak(reply, sync=True)
+
+            # Trường hợp 2: Chỉ gọi tên "Phi Nam ơi" (chưa có câu lệnh đi kèm)
+            elif has_wake and not inline_cmd:
                 print("\n>>> ĐÃ KÍCH HOẠT TRỢ LÝ PHI NAM! <<<", flush=True)
                 voice_engine.play_wake_chime()
+                if not voice_engine.play_cached_audio("wake_response.wav", sync=True):
+                    voice_engine.speak("Dạ, em nghe anh Phi Nam!", sync=True)
 
-                # Trường hợp 1: Người dùng nói gộp cả tên và lệnh (VD: "Phi Nam ơi mở Chrome")
-                if inline_cmd and len(inline_cmd) >= 3:
-                    print(f"[Thực thi lệnh đi kèm]: {inline_cmd}", flush=True)
-                    reply = command_registry.dispatch(inline_cmd)
-                    if reply == "TERMINATE_SESSION":
-                        if not voice_engine.play_cached_audio("goodbye.wav", sync=True):
-                            voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
-                        break
-                    if reply:
-                        print(f"[Phi Nam phản hồi]: {reply}", flush=True)
-                        voice_engine.speak(reply, sync=True)
+                print("[Đang lắng nghe câu lệnh tiếp theo của anh...] ", flush=True)
+                cmd = voice_engine.listen(timeout=6, phrase_time=7)
 
-                # Trường hợp 2: Người dùng chỉ gọi tên "Phi Nam ơi"
-                else:
-                    # Phản hồi tức thì 0ms bằng file âm thanh bản địa đã nạp sẵn
-                    if not voice_engine.play_cached_audio("wake_response.wav", sync=True):
-                        voice_engine.speak("Dạ, em nghe anh Phi Nam!", sync=True)
-
-                    print("[Đang lắng nghe câu lệnh tiếp theo của anh...] ", flush=True)
-                    cmd = voice_engine.listen(timeout=6, phrase_time=7)
-
-                    if cmd:
-                        print(f"[Câu lệnh nhận được]: {cmd}", flush=True)
-                        cmd_is_wake, extracted = detect_wake_and_extract_command(cmd)
-                        if cmd_is_wake and (not extracted or len(extracted) < 3):
-                            voice_engine.speak("Dạ em đây ạ! Anh muốn em mở ứng dụng gì hay làm gì ạ?", sync=True)
-                        else:
-                            final_cmd = extracted if (cmd_is_wake and extracted) else cmd
-                            reply = command_registry.dispatch(final_cmd)
-
-                            if reply == "TERMINATE_SESSION":
-                                if not voice_engine.play_cached_audio("goodbye.wav", sync=True):
-                                    voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
-                                break
-
-                            if reply:
-                                print(f"[Phi Nam phản hồi]: {reply}", flush=True)
-                                voice_engine.speak(reply, sync=True)
+                if cmd:
+                    print(f"[Câu lệnh nhận được]: {cmd}", flush=True)
+                    cmd_is_wake, clean_subcmd = detect_wake_and_extract_command(cmd)
+                    target_cmd = clean_subcmd if clean_subcmd else cmd
+                    if not target_cmd or len(target_cmd) < 2:
+                        voice_engine.speak("Dạ em đây ạ! Anh muốn em mở ứng dụng gì hay làm gì ạ?", sync=True)
                     else:
-                        if not voice_engine.play_cached_audio("not_heard.wav", sync=True):
-                            voice_engine.speak("Dạ, em chưa nghe rõ. Anh cần em giúp gì cứ gọi Phi Nam nhé!", sync=True)
+                        reply = command_registry.dispatch(target_cmd)
+                        if reply == "TERMINATE_SESSION":
+                            if not voice_engine.play_cached_audio("goodbye.wav", sync=True):
+                                voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
+                            break
+                        if reply:
+                            print(f"[Phi Nam phản hồi]: {reply}", flush=True)
+                            voice_engine.speak(reply, sync=True)
+                else:
+                    if not voice_engine.play_cached_audio("not_heard.wav", sync=True):
+                        voice_engine.speak("Dạ, em chưa nghe rõ. Anh cần em giúp gì cứ gọi Phi Nam nhé!", sync=True)
 
-            else:
-                # Nếu người dùng nói thẳng lệnh phổ biến mà quên gọi tên
-                lower_text = voice_text.lower()
-                direct_cmds = [
-                    "mở chrome", "bật chrome", "mở google chrome",
-                    "mở youtube", "bật youtube",
-                    "mở vs code", "mở code", "bật code",
-                    "tăng âm lượng", "giảm âm lượng", "tắt tiếng", "bật tiếng", "to lên", "nhỏ lại",
-                    "chụp màn hình", "khóa màn hình", "ẩn hết cửa sổ",
-                    "mở thư mục", "mở tải về", "mở desktop", "mở documents",
-                    "mở zalo", "mở notepad"
-                ]
-                if any(k in lower_text for k in direct_cmds):
-                    reply = command_registry.dispatch(voice_text)
-                    if reply and reply != "TERMINATE_SESSION":
-                        print(f"[Thực thi nhanh]: {reply}", flush=True)
-                        voice_engine.play_wake_chime()
-                        voice_engine.speak(reply, sync=True)
+            # Trường hợp 3: Người dùng nói thẳng câu lệnh hành động mà không gọi tên (VD: "Mở nhạc Thánh Ca trên YouTube ngay lập tức")
+            elif command_registry.can_handle(voice_text):
+                print(f"\n[Nhận diện lệnh hành động trực tiếp]: {voice_text}", flush=True)
+                voice_engine.play_wake_chime()
+                reply = command_registry.dispatch(voice_text)
+                if reply == "TERMINATE_SESSION":
+                    if not voice_engine.play_cached_audio("goodbye.wav", sync=True):
+                        voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
+                    break
+                if reply:
+                    print(f"[Thực thi nhanh]: {reply}", flush=True)
+                    voice_engine.speak(reply, sync=True)
 
         except KeyboardInterrupt:
             print("\nĐã dừng trợ lý Phi Nam AI.", flush=True)
