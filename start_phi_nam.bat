@@ -9,5 +9,6 @@ echo   Từ khóa kích hoạt: "Phi Nam" hoặc "Phi Nam ơi"
 echo ================================================================
 echo.
 
-python phi_nam_assistant.py
+set PYTHONIOENCODING=utf-8
+python -X utf8 phi_nam_assistant.py
 pause

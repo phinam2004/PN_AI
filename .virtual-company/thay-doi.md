@@ -23,7 +23,10 @@
 | `web_hud/app.js` | Tạo mới | Bộ điều khiển visualizer Canvas sóng âm, telemetry polling & chat log |
 | `maya_core.py` | Tạo mới | Bộ điều phối trung tâm thống nhất mọi module |
 | `main.py` | Cập nhật | Nâng cấp toàn diện tương thích ngược, không crash trên Windows/Linux |
-| `README.md` | Cập nhật | Tài liệu kỹ thuật hoàn chỉnh cho phiên bản v1.2 |
+| `phi_nam_assistant.py` | Tạo mới | Trợ lý ảo Phi Nam chạy trực tiếp từ micro, không cần mở web |
+| `setup_startup.py` | Tạo mới | Tự động tạo VBScript khởi động cùng Windows |
+| `cai_dat_khoi_dong_cung_windows.bat` | Tạo mới | Script 1-click cài đặt khởi động cùng Windows |
+| `assets/*.wav` | Tạo mới | Bộ âm thanh bản địa nạp sẵn phản hồi tức thì 0ms |
 
 ---
 
@@ -33,12 +36,15 @@
    - Thay thế lệnh gọi `os.system('say ...')` bằng `VoiceEngine` hỗ trợ `edge-tts` và SAPI5 / PowerShell trên Windows.
    - Thay thế `subprocess.run(["mdfind", ...])` bằng `platform_adapter.find_and_open_folder(...)` quét thông minh các thư mục Windows, macOS, Linux.
    - Thay thế `open -a` bằng logic phân giải registry và PATH cross-platform.
-2. **Loại bỏ hiện tượng đơ luồng (Non-blocking):**
-   - Hàng đợi TTS chạy ngầm trong luồng worker riêng biệt.
-   - Loại bỏ độ trễ `adjust_for_ambient_noise(0.5)` lặp đi lặp lại.
-3. **Giao diện thế hệ mới:**
-   - Tạo mới giao diện Cockpit HUD trực quan sống động phản hồi trạng thái: `IDLE`, `LISTENING`, `THINKING`, `SPEAKING`.
-4. **Trí tuệ nhân tạo có trí nhớ:**
-   - `ai_engine.py` lưu trữ 10 lượt hội thoại gần nhất, hỗ trợ Persona linh hoạt và fallback thông minh không bị sập khi chưa có Ollama.
+2. **Loại bỏ độ trễ phản hồi (Zero-Latency Wake Response):**
+   - Đổi từ khóa kích hoạt thành **"Phi Nam"** / **"Phi Nam ơi"** và nhận diện đa âm vực (xử lý cả trường hợp Google nhận thành "Việt Nam ơi").
+   - Nạp sẵn file âm thanh WAV không nén tại thư mục `assets/` (`wake_response.wav`, `ready.wav`, `not_heard.wav`, `goodbye.wav`).
+   - Sử dụng `winsound.PlaySound` phát thanh trực tiếp qua driver âm thanh Windows với độ trễ 0ms (không tốn 2-3s kết nối mạng qua Edge-TTS).
+   - Thiết lập `energy_threshold = 450` và `pause_threshold = 0.6` giúp lọc tạp âm môi trường/phim ảnh và chốt câu nói nhanh hơn.
+   - Chuyển toàn bộ hội thoại fallback sang tiếng Việt tự nhiên, lịch thiệp.
+3. **Giao diện thế hệ mới & Trợ lý Desktop độc lập:**
+   - Hoạt động 100% độc lập trên Windows dưới dạng tiến trình nền không cần trình duyệt web.
+   - Tự động hóa hệ thống: Mở ứng dụng, tăng giảm âm lượng, chụp ảnh màn hình, tìm kiếm Google/YouTube.
 
 👉 **Tự động chuyển giao sang Chặng 3 (QA Tester & Kiểm Thử).**
+

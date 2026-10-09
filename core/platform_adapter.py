@@ -186,6 +186,14 @@ class PlatformAdapter:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         file_path = os.path.abspath(os.path.join(output_dir, f"screenshot_{timestamp}.png"))
 
+        # On Windows: Launch Windows Snipping Tool overlay directly
+        if self.is_windows:
+            try:
+                subprocess.Popen(["cmd.exe", "/c", "start", "ms-screenclip:"], shell=False)
+                return "ms-screenclip"
+            except Exception:
+                pass
+
         # Try PIL ImageGrab
         try:
             from PIL import ImageGrab

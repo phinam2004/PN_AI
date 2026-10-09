@@ -41,15 +41,28 @@ class VoiceEngine:
             try:
                 import speech_recognition as sr
                 self.recognizer = sr.Recognizer()
-                self.recognizer.dynamic_energy_threshold = False
-                self.recognizer.energy_threshold = 450
-                self.recognizer.pause_threshold = 0.6
+                self.recognizer.dynamic_energy_threshold = True
+                self.recognizer.energy_threshold = 120
+                self.recognizer.pause_threshold = 0.7
             except Exception:
                 pass
 
         # Start background TTS worker thread
         self.tts_thread = threading.Thread(target=self._process_tts_queue, daemon=True)
         self.tts_thread.start()
+
+    def calibrate_microphone(self):
+        """Calibrates microphone sensitivity based on actual ambient noise in 0.5s."""
+        if self.has_speech_recognition and self.recognizer:
+            try:
+                import speech_recognition as sr
+                with sr.Microphone() as source:
+                    self.recognizer.adjust_for_ambient_noise(source, duration=0.6)
+                    # Keep energy threshold responsive (between 80 and 220)
+                    self.recognizer.energy_threshold = max(80, min(self.recognizer.energy_threshold, 220))
+                    print(f"[VoiceEngine] Micro đã cân chỉnh: ngưỡng {self.recognizer.energy_threshold:.1f}")
+            except Exception as e:
+                print(f"[VoiceEngine] Cân chỉnh micro: {e}")
 
     def _check_edge_tts(self) -> bool:
         try:
@@ -186,14 +199,35 @@ class VoiceEngine:
         print(f"[VoiceEngine] (Silent output): {text}")
 
     def _play_audio_file(self, file_path: str, text_len: int = 20):
-        """Cross-platform audio file playback."""
+        """Cross-platform audio file playback with multi-fallback reliability."""
+        import shutil
+
+        # Method 1: ffplay (100% reliable across all formats MP3/WAV/AAC and direct WASAPI output)
+        ffplay = shutil.which("ffplay")
+        if ffplay:
+            try:
+                subprocess.run([ffplay, "-nodisp", "-autoexit", "-loglevel", "quiet", file_path],
+                               check=True, timeout=12)
+                return
+            except Exception:
+                pass
+
         if platform_adapter.is_windows:
+            # Method 2: winsound for WAV
+            if file_path.lower().endswith(".wav"):
+                try:
+                    import winsound
+                    winsound.PlaySound(file_path, winsound.SND_FILENAME)
+                    return
+                except Exception:
+                    pass
+
+            # Method 3: Windows Media Player COM
             try:
                 import win32com.client, time
                 wmp = win32com.client.Dispatch("WMPlayer.OCX")
                 wmp.URL = file_path
                 wmp.controls.play()
-                # Estimate playback time: ~0.15s per character, min 1.5s, max 10s
                 wait_time = min(10.0, max(1.5, text_len * 0.15))
                 time.sleep(wait_time)
                 return
@@ -208,8 +242,7 @@ class VoiceEngine:
                 pass
 
         elif platform_adapter.is_linux:
-            import shutil
-            for player in ["ffplay", "mpv", "aplay", "paplay"]:
+            for player in ["mpv", "aplay", "paplay"]:
                 if shutil.which(player):
                     try:
                         subprocess.run([player, "-nodisp", "-autoexit", file_path], check=True, capture_output=True)

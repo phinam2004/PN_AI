@@ -82,6 +82,9 @@ def run_phi_nam_assistant():
     print(" ❌ Nhấn Ctrl + C hoặc nói 'Tạm biệt Phi Nam' để tắt", flush=True)
     print("="*65 + "\n", flush=True)
 
+    # Cân chỉnh độ nhạy micro theo môi trường phòng (chống điếc mic)
+    voice_engine.calibrate_microphone()
+
     # Phát âm thanh chuông và câu chào khởi động siêu tốc 0ms
     voice_engine.play_wake_chime()
     if not voice_engine.play_cached_audio("ready.wav", sync=True):
@@ -125,7 +128,7 @@ def run_phi_nam_assistant():
                         voice_engine.speak("Dạ, em nghe anh Phi Nam!", sync=True)
 
                     print("[Đang lắng nghe câu lệnh tiếp theo của anh...] ", flush=True)
-                    cmd = voice_engine.listen(timeout=5, phrase_time=6)
+                    cmd = voice_engine.listen(timeout=6, phrase_time=7)
 
                     if cmd:
                         print(f"[Câu lệnh nhận được]: {cmd}", flush=True)
@@ -152,9 +155,13 @@ def run_phi_nam_assistant():
                 # Nếu người dùng nói thẳng lệnh phổ biến mà quên gọi tên
                 lower_text = voice_text.lower()
                 direct_cmds = [
-                    "mở chrome", "bật chrome", "mở vs code", "mở code",
-                    "tăng âm lượng", "giảm âm lượng", "tắt tiếng", "bật tiếng",
-                    "chụp màn hình", "khóa màn hình", "ẩn hết cửa sổ"
+                    "mở chrome", "bật chrome", "mở google chrome",
+                    "mở youtube", "bật youtube",
+                    "mở vs code", "mở code", "bật code",
+                    "tăng âm lượng", "giảm âm lượng", "tắt tiếng", "bật tiếng", "to lên", "nhỏ lại",
+                    "chụp màn hình", "khóa màn hình", "ẩn hết cửa sổ",
+                    "mở thư mục", "mở tải về", "mở desktop", "mở documents",
+                    "mở zalo", "mở notepad"
                 ]
                 if any(k in lower_text for k in direct_cmds):
                     reply = command_registry.dispatch(voice_text)
