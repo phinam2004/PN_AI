@@ -41,9 +41,9 @@ class VoiceEngine:
             try:
                 import speech_recognition as sr
                 self.recognizer = sr.Recognizer()
-                self.recognizer.dynamic_energy_threshold = True
-                self.recognizer.energy_threshold = 280
-                self.recognizer.pause_threshold = 0.8
+                self.recognizer.dynamic_energy_threshold = False
+                self.recognizer.energy_threshold = 450
+                self.recognizer.pause_threshold = 0.6
             except Exception:
                 pass
 
@@ -66,14 +66,41 @@ class VoiceEngine:
             return False
 
     def play_wake_chime(self):
-        """Plays a pleasant wake alert chime when 'Phi Nam' is called."""
+        """Plays the official high-fidelity Windows Speech recognition chime instantly."""
         try:
             if platform_adapter.is_windows:
                 import winsound
-                winsound.Beep(1200, 100)
-                winsound.Beep(1600, 130)
+                sound_file = r'C:\Windows\Media\Speech On.wav'
+                if os.path.exists(sound_file):
+                    winsound.PlaySound(sound_file, winsound.SND_FILENAME | winsound.SND_ASYNC)
+                else:
+                    winsound.Beep(1200, 100)
         except Exception:
             pass
+
+    def play_cached_audio(self, filename: str, sync: bool = True) -> bool:
+        """Plays a pre-cached local audio file instantly with 0ms network latency."""
+        base_name = os.path.splitext(filename)[0]
+        # Prefer uncompressed WAV for 0ms instant Windows playback
+        wav_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", f"{base_name}.wav"))
+        mp3_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", f"{base_name}.mp3"))
+
+        if platform_adapter.is_windows and os.path.exists(wav_path):
+            try:
+                import winsound
+                flags = winsound.SND_FILENAME
+                if not sync:
+                    flags |= winsound.SND_ASYNC
+                winsound.PlaySound(wav_path, flags)
+                return True
+            except Exception:
+                pass
+
+        target_file = wav_path if os.path.exists(wav_path) else mp3_path
+        if os.path.exists(target_file):
+            self._play_audio_file(target_file, text_len=15)
+            return True
+        return False
 
     def speak(self, text: str, sync: bool = False):
         """Queue text for voice synthesis."""

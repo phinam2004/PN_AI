@@ -82,9 +82,10 @@ def run_phi_nam_assistant():
     print(" ❌ Nhấn Ctrl + C hoặc nói 'Tạm biệt Phi Nam' để tắt", flush=True)
     print("="*65 + "\n", flush=True)
 
-    # Phát âm thanh chuông khởi động
+    # Phát âm thanh chuông và câu chào khởi động siêu tốc 0ms
     voice_engine.play_wake_chime()
-    voice_engine.speak("Trợ lý ảo Phi Nam đã sẵn sàng phục vụ anh.", sync=True)
+    if not voice_engine.play_cached_audio("ready.wav", sync=True):
+        voice_engine.speak("Trợ lý ảo Phi Nam đã sẵn sàng phục vụ anh.", sync=True)
 
     is_running = True
 
@@ -94,7 +95,7 @@ def run_phi_nam_assistant():
             voice_text = voice_engine.listen(timeout=4, phrase_time=5)
 
             if not voice_text:
-                time.sleep(0.3)
+                time.sleep(0.2)
                 continue
 
             print(f"\n[Âm thanh nhận dạng]: {voice_text}", flush=True)
@@ -110,7 +111,8 @@ def run_phi_nam_assistant():
                     print(f"[Thực thi lệnh đi kèm]: {inline_cmd}", flush=True)
                     reply = command_registry.dispatch(inline_cmd)
                     if reply == "TERMINATE_SESSION":
-                        voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
+                        if not voice_engine.play_cached_audio("goodbye.wav", sync=True):
+                            voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
                         break
                     if reply:
                         print(f"[Phi Nam phản hồi]: {reply}", flush=True)
@@ -118,23 +120,33 @@ def run_phi_nam_assistant():
 
                 # Trường hợp 2: Người dùng chỉ gọi tên "Phi Nam ơi"
                 else:
-                    voice_engine.speak("Dạ, em nghe anh Phi Nam!", sync=True)
+                    # Phản hồi tức thì 0ms bằng file âm thanh bản địa đã nạp sẵn
+                    if not voice_engine.play_cached_audio("wake_response.wav", sync=True):
+                        voice_engine.speak("Dạ, em nghe anh Phi Nam!", sync=True)
+
                     print("[Đang lắng nghe câu lệnh tiếp theo của anh...] ", flush=True)
-                    cmd = voice_engine.listen(timeout=6, phrase_time=8)
+                    cmd = voice_engine.listen(timeout=5, phrase_time=6)
 
                     if cmd:
                         print(f"[Câu lệnh nhận được]: {cmd}", flush=True)
-                        reply = command_registry.dispatch(cmd)
+                        cmd_is_wake, extracted = detect_wake_and_extract_command(cmd)
+                        if cmd_is_wake and (not extracted or len(extracted) < 3):
+                            voice_engine.speak("Dạ em đây ạ! Anh muốn em mở ứng dụng gì hay làm gì ạ?", sync=True)
+                        else:
+                            final_cmd = extracted if (cmd_is_wake and extracted) else cmd
+                            reply = command_registry.dispatch(final_cmd)
 
-                        if reply == "TERMINATE_SESSION":
-                            voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
-                            break
+                            if reply == "TERMINATE_SESSION":
+                                if not voice_engine.play_cached_audio("goodbye.wav", sync=True):
+                                    voice_engine.speak("Dạ, tạm biệt anh Phi Nam. Chúc anh một ngày tốt lành!", sync=True)
+                                break
 
-                        if reply:
-                            print(f"[Phi Nam phản hồi]: {reply}", flush=True)
-                            voice_engine.speak(reply, sync=True)
+                            if reply:
+                                print(f"[Phi Nam phản hồi]: {reply}", flush=True)
+                                voice_engine.speak(reply, sync=True)
                     else:
-                        voice_engine.speak("Dạ, em chưa nghe rõ. Anh cần em giúp gì cứ gọi Phi Nam nhé!", sync=True)
+                        if not voice_engine.play_cached_audio("not_heard.wav", sync=True):
+                            voice_engine.speak("Dạ, em chưa nghe rõ. Anh cần em giúp gì cứ gọi Phi Nam nhé!", sync=True)
 
             else:
                 # Nếu người dùng nói thẳng lệnh phổ biến mà quên gọi tên

@@ -3,12 +3,11 @@ import json
 from typing import List, Dict, Any, Optional
 
 DEFAULT_SYSTEM_PROMPT = """
-You are Maya, an ultra-intelligent, fast, and witty personal AI assistant.
-Guidelines:
-1. Keep spoken responses concise (1 to 3 sentences maximum) unless specifically asked for a detailed explanation.
-2. Be direct, helpful, and courteous. Address the user respectfully as 'boss' or with natural warmth.
-3. If executing a command or answering a factual query, prioritize crisp clarity without conversational filler.
-4. When writing code, summarize the solution in one sentence and offer to open or write the file.
+Bạn là Phi Nam AI, trợ lý ảo thông minh, nhanh nhẹn và lịch thiệp chạy trực tiếp trên máy tính của người dùng.
+Quy tắc:
+1. Trả lời súc tích, ngắn gọn (1 đến 2 câu).
+2. Xưng hô tự nhiên, lễ phép: 'Dạ, em nghe anh Phi Nam' hoặc 'Dạ, em đã làm xong cho anh rồi ạ'.
+3. Ưu tiên hỗ trợ điều khiển máy tính, mở app, tìm kiếm web, chỉnh âm thanh và tự động hóa.
 """
 
 class AIEngine:
@@ -41,7 +40,7 @@ class AIEngine:
         Falls back gracefully if local LLM is unreachable.
         """
         if not user_prompt or not user_prompt.strip():
-            return "I am listening, boss. What can I do for you?"
+            return "Dạ, em đang lắng nghe anh đây ạ. Anh cần em giúp gì ạ?"
 
         # Append to history
         self.conversation_history.append({"role": "user", "content": user_prompt})
@@ -70,22 +69,24 @@ class AIEngine:
         return fallback_reply
 
     def _heuristic_fallback(self, prompt: str) -> str:
-        """Rule-based smart response when offline or when LLM server is starting up."""
+        """Rule-based smart response in natural Vietnamese when offline."""
         p = prompt.lower()
-        if any(w in p for w in ["who are you", "what is your name", "introduce yourself"]):
-            return "I am Maya, your next-generation personal AI assistant, built for speed, automation, and effortless voice control."
-        elif any(w in p for w in ["how are you", "how's it going"]):
-            return "All operational systems are running at peak efficiency, boss. Standing by for your command."
-        elif any(w in p for w in ["time", "what time"]):
+        if any(w in p for w in ["bạn là ai", "em là ai", "phi nam là ai", "who are you"]):
+            return "Dạ, em là Phi Nam AI, trợ lý ảo thông minh chạy trực tiếp trên máy tính của anh ạ."
+        elif any(w in p for w in ["phi nam ơi", "việt nam ơi", "phi nam", "ơi em"]):
+            return "Dạ, em nghe anh Phi Nam! Anh muốn em mở ứng dụng hay làm gì giúp anh ạ?"
+        elif any(w in p for w in ["khỏe không", "thế nào rồi", "how are you"]):
+            return "Dạ, hệ thống đang hoạt động với hiệu năng tối đa, sẵn sàng phục vụ anh ạ!"
+        elif any(w in p for w in ["mấy giờ", "bây giờ là mấy giờ", "thời gian", "time"]):
             from datetime import datetime
-            return f"The current time is {datetime.now().strftime('%I:%M %p')}."
-        elif any(w in p for w in ["date", "what day"]):
+            return f"Dạ, bây giờ là {datetime.now().strftime('%H:%M')} ạ."
+        elif any(w in p for w in ["ngày mấy", "hôm nay ngày", "thứ mấy", "date"]):
             from datetime import datetime
-            return f"Today is {datetime.now().strftime('%A, %B %d, %Y')}."
-        elif "thank" in p:
-            return "Always a pleasure to assist you, boss."
+            return f"Dạ, hôm nay là ngày {datetime.now().strftime('%d/%m/%Y')} ạ."
+        elif any(w in p for w in ["cảm ơn", "thank"]):
+            return "Dạ, được phục vụ anh là niềm vui của em ạ!"
         else:
-            return f"I heard you say: '{prompt}'. Local LLM is offline, but my system automation commands remain fully operational."
+            return f"Dạ, em đã nghe rõ yêu cầu: '{prompt}'. Em có thể giúp anh mở Chrome, VS Code, tăng giảm âm lượng hoặc tìm kiếm Google, YouTube ngay lập tức ạ!"
 
     def clear_history(self):
         """Resets conversational memory."""
