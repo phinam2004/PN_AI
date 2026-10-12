@@ -243,7 +243,25 @@ class CommandRegistry:
                 if kw in command or difflib.SequenceMatcher(None, kw, command).ratio() > 0.82:
                     return handler_entry["handler"](command)
 
-        # 5. Smart AI Fallback (Ollama or Heuristic Conversational)
+        # 5. Smart Search Resolution (Hợp âm, lời bài hát, tra cứu kiến thức, tin tức)
+        search_triggers = [
+            "hợp âm", "lời bài hát", "lời bài", "hợp âm bài",
+            "tìm kiếm", "tìm", "tra cứu", "định nghĩa",
+            "ai là", "ở đâu", "như thế nào", "tại sao", "cách làm", "hướng dẫn",
+            "giá vàng", "thời tiết", "tin tức", "xem phim"
+        ]
+        if any(trigger in clean_cmd for trigger in search_triggers):
+            import urllib.parse
+            webbrowser.open(f"https://www.google.com/search?q={urllib.parse.quote_plus(clean_cmd)}")
+            return f"Dạ, em đang tìm kiếm '{clean_cmd}' trên Google cho anh đây ạ."
+
+        # Nếu là câu hỏi hoặc yêu cầu chung có độ dài >= 5 ký tự (không phải chào hỏi thông thường)
+        if len(clean_cmd) >= 5 and not any(w in clean_cmd for w in ["bạn là ai", "em là ai", "khỏe không", "mấy giờ", "ngày mấy"]):
+            import urllib.parse
+            webbrowser.open(f"https://www.google.com/search?q={urllib.parse.quote_plus(clean_cmd)}")
+            return f"Dạ, em đang tìm kiếm thông tin về '{clean_cmd}' trên Google cho anh ạ."
+
+        # 6. Smart AI Fallback (Ollama or Heuristic Conversational)
         return ai_engine.ask(command)
 
     def can_handle(self, raw_command: str) -> bool:
@@ -272,7 +290,11 @@ class CommandRegistry:
         if clean.startswith("mở thư mục "):
             return True
 
-        # 5. Registered Handlers
+        # 5. Smart Search Triggers (Hợp âm, lời bài hát, tra cứu...)
+        if any(w in clean for w in ["hợp âm", "lời bài hát", "lời bài", "tìm kiếm", "tra cứu", "định nghĩa"]):
+            return True
+
+        # 6. Registered Handlers
         for h in self.handlers:
             for kw in h["keywords"]:
                 if kw in clean or difflib.SequenceMatcher(None, kw, clean).ratio() > 0.82:
