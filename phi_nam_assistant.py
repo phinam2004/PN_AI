@@ -99,12 +99,13 @@ def run_phi_nam_assistant():
             # Trường hợp 2: Chỉ gọi tên "Phi Nam ơi" (chưa có câu lệnh đi kèm)
             elif has_wake and not inline_cmd:
                 print("\n>>> ĐÃ KÍCH HOẠT TRỢ LÝ PHI NAM! <<<", flush=True)
+                # Phát chuông và câu đáp bất đồng bộ (sync=False) để micro mở ngay lập tức, không làm lỡ lời nói của người dùng
                 voice_engine.play_wake_chime()
-                if not voice_engine.play_cached_audio("wake_response.wav", sync=True):
-                    voice_engine.speak("Dạ, em nghe anh Phi Nam!", sync=True)
+                if not voice_engine.play_cached_audio("wake_short_trimmed.wav", sync=False):
+                    voice_engine.play_cached_audio("wake_response.wav", sync=False)
 
                 print("[Đang lắng nghe câu lệnh tiếp theo của anh...] ", flush=True)
-                cmd = voice_engine.listen(timeout=6, phrase_time=7)
+                cmd = voice_engine.listen(timeout=7, phrase_time=8)
 
                 if cmd:
                     print(f"[Câu lệnh nhận được]: {cmd}", flush=True)
