@@ -172,8 +172,9 @@ class CommandRegistry:
         if not command:
             return ""
 
-        # 1. Exit / Shutdown command
-        if any(w in command for w in ["tạm biệt phi nam", "tắt trợ lý", "dừng lại", "ngủ đi", "thoát", "stop maya", "exit"]):
+        # 1. Exit / Shutdown command (Must be explicit phrase or exact word, never loose substring like 'giải thoát')
+        shutdown_phrases = ["tạm biệt phi nam", "tắt trợ lý", "dừng trợ lý", "ngủ đi", "thoát trợ lý", "stop assistant"]
+        if any(p in command for p in shutdown_phrases) or command.strip() in ["tạm biệt", "thoát", "exit", "quit", "dừng lại", "dừng"]:
             return "TERMINATE_SESSION"
 
         # Clean filler words from the end of commands (e.g., 'ngay lập tức', 'ngay', 'cho anh', 'nhé')
@@ -271,8 +272,9 @@ class CommandRegistry:
         cmd = raw_command.lower().strip()
         clean = re.sub(r'\s*(ngay lập tức|ngay bây giờ|ngay và luôn|ngay|cho anh|cho tôi|nhé|đi|nha|với|giúp anh|giúp tôi)+$', '', cmd).strip()
 
-        # 1. Shutdown
-        if any(w in clean for w in ["tạm biệt phi nam", "tắt trợ lý", "dừng lại", "ngủ đi", "thoát", "stop"]):
+        # 1. Shutdown (Explicit phrase or exact word only)
+        shutdown_phrases = ["tạm biệt phi nam", "tắt trợ lý", "dừng trợ lý", "ngủ đi", "thoát trợ lý", "stop assistant"]
+        if any(p in clean for p in shutdown_phrases) or clean.strip() in ["tạm biệt", "thoát", "exit", "quit", "dừng lại", "dừng"]:
             return True
 
         # 2. YouTube & Music
